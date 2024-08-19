@@ -41,7 +41,9 @@ class VocosExp(pl.LightningModule):
         input_adaptor: InputAdaptor,
         sample_rate: int,
         initial_learning_rate: float,
-        num_warmup_steps: int
+        num_warmup_steps: int,
+        p_uncond=0.,
+        guidance_scale=1.
     ):
         """
         Args:
@@ -77,6 +79,10 @@ class VocosExp(pl.LightningModule):
         self.dur_processor = DurationProcessor()
         self.standalone_dur_start_step = 10000
         self.train_dur = True
+
+        self.p_uncond = p_uncond
+        self.cfg = guidance_scale > 1.
+        self.guidance_scale = guidance_scale
 
     def configure_optimizers(self):
         gen_params = [
@@ -165,6 +171,10 @@ class VocosExp(pl.LightningModule):
         audio_input, phone_info = batch
         phone_info, pi_kwargs, ctx_kwargs = self.process_context(phone_info)
         text = self.input_adaptor(*phone_info)
+        dur_loss = self.compute_dur_loss(text, **pi_kwargs)
+        # cfg after dur_loss as cfg modifies text.
+        if self.cfg and np.random.uniform() < self.p_uncond:
+            text = torch.ones_like(text) * text.detach().mean(dim=(0, 2), keepdim=True)
         mel = self.feature_extractor(audio_input, **kwargs)
         mel = self.mel_processor.project_sample(mel)
         ctx_mask = sequence_mask_with_ctx(**ctx_kwargs)
@@ -173,7 +183,6 @@ class VocosExp(pl.LightningModule):
         pred = self.forward(z_t, t, text, **kwargs)
         pred = torch.where(ctx_mask.unsqueeze(1), pred, target)
         rf_loss = F.mse_loss(pred, target)
-        dur_loss = self.compute_dur_loss(text, **pi_kwargs)
         loss = rf_loss + dur_loss
         self.log("train/loss", loss, prog_bar=True)
         self.log("train/rf_loss", rf_loss)
@@ -187,11 +196,24 @@ class VocosExp(pl.LightningModule):
         z = z0
         ts = torch.linspace(0, 1, N + 1, device=text.device)
         traj = []
+
+        if self.cfg:
+            text = torch.cat([text, torch.ones_like(text) * text.mean(dim=(0, 2), keepdim=True)], dim=0)
+            for k, v in kwargs.items():
+                if isinstance(v, torch.Tensor):
+                    kwargs[k] = torch.cat([v] * 2, dim=0)
+
         for i, t in enumerate(ts[:-1]):
             dt = ts[i + 1] - t
             t_ = torch.ones(text.size(0), device=text.device) * t
             with torch.no_grad():
-                pred = self.forward(z, t_, text, **kwargs)
+                if self.cfg:
+                    z_ = torch.cat([z] * 2, dim=0)
+                    pred = self.forward(z_, t_, text, **kwargs)
+                    pred, uncond_pred = torch.chunk(pred, 2, dim=0)
+                    pred = uncond_pred + self.guidance_scale * (pred - uncond_pred)
+                else:
+                    pred = self.forward(z, t_, text, **kwargs)
                 z = z + pred.detach() * dt
             if i == N - 1 or keep_traj:
                 traj.append(z.detach())
