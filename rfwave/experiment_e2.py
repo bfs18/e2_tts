@@ -149,7 +149,7 @@ class VocosExp(pl.LightningModule):
         phone_info = [phone_info[0], phone_info[2]]
         return phone_info, pi_kwargs, ctx_kwargs
 
-    def compute_dur_loss(self, text, standalone_attn, **kwargs):
+    def compute_dur_loss(self, text, **kwargs):
         num_tokens = kwargs['num_tokens']
         ref_length = kwargs['ctx_length']
         dur_out = self.standalone_dur(text, num_tokens, ref_length)
@@ -178,7 +178,7 @@ class VocosExp(pl.LightningModule):
         self.log("train/loss", loss, prog_bar=True)
         self.log("train/rf_loss", rf_loss)
         self.log("train/dur_loss", dur_loss)
-        return rf_loss
+        return loss
 
     def sample_ode(self, text, N=None, keep_traj=False, **kwargs):
         if N is None:
