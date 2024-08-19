@@ -209,14 +209,17 @@ class VocosExp(pl.LightningModule):
         phone_info, pi_kwargs, ctx_kwargs = self.process_context(phone_info)
         with torch.no_grad():
             text = self.input_adaptor(*phone_info)
+            assert text.size(1) == pi_kwargs['num_tokens'].max() + pi_kwargs['ctx_length'].max(), \
+                (f"text_ctx length {text.size(2)} != num_tokens {pi_kwargs['num_tokens'].max()} + "
+                 f"ctx_length {pi_kwargs['ctx_length'].max()}")
             mel = self.feature_extractor(audio_input, **kwargs)
             mel = self.mel_processor.project_sample(mel)
             kwargs.update(**pi_kwargs)
             kwargs['out_length'] = mel.size(2)
             # out_length, token_exp_scale will be replaced.
-            aod_kwargs = (self.infer_dur(text, **pi_kwargs)
+            dur_kwargs = (self.infer_dur(text, **pi_kwargs)
                           if self.global_step > self.standalone_dur_start_step * 1.5 else {})
-            kwargs.update(**aod_kwargs)
+            kwargs.update(**dur_kwargs)
             mel_hat = self.sample_ode(text, **kwargs)[-1]
 
         mel_hat_interp = F.interpolate(mel_hat, size=mel.shape[2:])

@@ -2,6 +2,8 @@ import torch
 import julius
 import typing as tp
 
+from rfwave.pqmf import PQMF
+
 
 class SampleProcessor(torch.nn.Module):
     def project_sample(self, x: torch.Tensor):
@@ -107,6 +109,31 @@ class STFTProcessor(SampleProcessor):
     def return_sample(self, x: torch.Tensor):
         v = torch.tile(self.var_ema, [2])
         x = x * torch.sqrt(v[None, :, None] + 1e-6)
+        return x
+
+
+class PQMFProcessor(SampleProcessor):
+    def __init__(self, subbands=4, taps=62, cutoff_ratio=0.142, beta=9.0):
+        super().__init__()
+        self.pqmf = PQMF(subbands, taps, cutoff_ratio, beta)
+        self.register_buffer('mean_ema', torch.zeros([subbands]))
+        self.register_buffer('var_ema', torch.ones([subbands]))
+
+    def project_sample(self, x: torch.Tensor):
+        audio_subbands = self.pqmf.analysis(x)
+        if self.training:
+            audio_subbands_mean = [torch.mean(x) for x in torch.unbind(audio_subbands, dim=1)]
+            audio_subbands_var = [torch.var(x) for x in torch.unbind(audio_subbands, dim=1)]
+            self.mean_ema.lerp_(torch.stack(audio_subbands_mean).detach(), 0.01)
+            self.var_ema.lerp_(torch.stack(audio_subbands_var).detach(), 0.01)
+        audio_subbands = (audio_subbands - self.mean_ema.unsqueeze(-1)) / torch.sqrt(self.var_ema.unsqueeze(-1) + 1e-6)
+        audio = self.pqmf.synthesis(audio_subbands)
+        return audio
+
+    def return_sample(self, x: torch.Tensor):
+        x_subbands = self.pqmf.analysis(x)
+        x_subbands = x_subbands * torch.sqrt(self.var_ema.unsqueeze(-1) + 1e-6) + self.mean_ema.unsqueeze(-1)
+        x = self.pqmf.synthesis(x_subbands)
         return x
 
 
