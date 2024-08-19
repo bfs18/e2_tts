@@ -74,7 +74,7 @@ class VocosExp(pl.LightningModule):
         self.N = 20
 
         self.standalone_dur = E2EDuration(DurModel(self.input_adaptor.dim, 2), output_exp_scale=True)
-        self.dur_processor = DurationProcessor() if self.dur_output_exp_scale else MeanVarProcessor(1)
+        self.dur_processor = DurationProcessor()
         self.standalone_dur_start_step = 10000
         self.train_dur = True
 
@@ -149,6 +149,18 @@ class VocosExp(pl.LightningModule):
         phone_info = [phone_info[0], phone_info[2]]
         return phone_info, pi_kwargs, ctx_kwargs
 
+    def compute_dur_loss(self, text, standalone_attn, **kwargs):
+        num_tokens = kwargs['num_tokens']
+        ref_length = kwargs['ctx_length']
+        dur_out = self.standalone_dur(text, num_tokens, ref_length)
+        token_exp_scale = kwargs['token_exp_scale']
+        token_exp_scale = self.dur_processor.project_sample(token_exp_scale)
+        loss = F.mse_loss(dur_out, token_exp_scale)
+        if self.global_step < self.standalone_dur_start_step:
+            return loss * 0.  # all weights are used.
+        else:
+            return loss
+
     def training_step(self, batch, *args, **kwargs):
         audio_input, phone_info = batch
         phone_info, pi_kwargs, ctx_kwargs = self.process_context(phone_info)
@@ -161,7 +173,11 @@ class VocosExp(pl.LightningModule):
         pred = self.forward(z_t, t, text, **kwargs)
         pred = torch.where(ctx_mask.unsqueeze(1), pred, target)
         rf_loss = F.mse_loss(pred, target)
-        self.log("train/rf_loss", rf_loss, prog_bar=True)
+        dur_loss = self.compute_dur_loss(text, **pi_kwargs)
+        loss = rf_loss + dur_loss
+        self.log("train/loss", loss, prog_bar=True)
+        self.log("train/rf_loss", rf_loss)
+        self.log("train/dur_loss", dur_loss)
         return rf_loss
 
     def sample_ode(self, text, N=None, keep_traj=False, **kwargs):
@@ -198,7 +214,8 @@ class VocosExp(pl.LightningModule):
             kwargs.update(**pi_kwargs)
             kwargs['out_length'] = mel.size(2)
             # out_length, token_exp_scale will be replaced.
-            aod_kwargs = self.infer_dur(text, **pi_kwargs)
+            aod_kwargs = (self.infer_dur(text, **pi_kwargs)
+                          if self.global_step > self.standalone_dur_start_step * 1.5 else {})
             kwargs.update(**aod_kwargs)
             mel_hat = self.sample_ode(text, **kwargs)[-1]
 
@@ -218,14 +235,14 @@ class VocosExp(pl.LightningModule):
         mel_loss = torch.stack([x["mel_loss"] for x in outputs]).mean()
 
         if self.global_rank == 0:
-            audio_in, mel_hat = outputs[0]['audio_input'], outputs[0]['inter_mel']
+            audio_in, mel_hat = outputs[0]['audio_input'], outputs[0]['mel_hat']
             mel_hat = self.mel_processor.return_sample(mel_hat.unsqueeze(0)).squeeze(0)
             mel_target = self.feature_extractor(audio_in.unsqueeze(0)).squeeze(0)
             metrics = {"val_loss": mel_loss, "val/mel_loss": mel_loss}
             self.logger.log_metrics(metrics, step=self.global_step)
             self.logger.experiment.log(
                 {"valid/mel_in": wandb.Image(plot_spectrogram_to_numpy(mel_target.data.cpu().numpy())),
-                 "valid/inter_mel": wandb.Image(plot_spectrogram_to_numpy(mel_hat.data.cpu().numpy()))},
+                 "valid/mel_hat": wandb.Image(plot_spectrogram_to_numpy(mel_hat.data.cpu().numpy()))},
                 step=self.global_step)
         self.log("val_loss", mel_loss, sync_dist=True, logger=False)
         self.validation_step_outputs.clear()
