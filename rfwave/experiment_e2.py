@@ -238,11 +238,11 @@ class VocosExp(pl.LightningModule):
             audio_in, mel_hat = outputs[0]['audio_input'], outputs[0]['mel_hat']
             mel_hat = self.mel_processor.return_sample(mel_hat.unsqueeze(0)).squeeze(0)
             mel_target = self.feature_extractor(audio_in.unsqueeze(0)).squeeze(0)
-            metrics = {"val_loss": mel_loss, "val/mel_loss": mel_loss}
+            metrics = {"val_loss": mel_loss, "valid/mel_loss": mel_loss}
             self.logger.log_metrics(metrics, step=self.global_step)
             self.logger.experiment.log(
-                {"valid/mel_in": wandb.Image(plot_spectrogram_to_numpy(mel_target.data.cpu().numpy())),
-                 "valid/mel_hat": wandb.Image(plot_spectrogram_to_numpy(mel_hat.data.cpu().numpy()))},
+                {"valid_media/mel_in": wandb.Image(plot_spectrogram_to_numpy(mel_target.data.cpu().numpy())),
+                 "valid_media/mel_hat": wandb.Image(plot_spectrogram_to_numpy(mel_hat.data.cpu().numpy()))},
                 step=self.global_step)
         self.log("val_loss", mel_loss, sync_dist=True, logger=False)
         self.validation_step_outputs.clear()
