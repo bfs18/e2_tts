@@ -190,8 +190,9 @@ class VocosExp(pl.LightningModule):
         for i, t in enumerate(ts[:-1]):
             dt = ts[i + 1] - t
             t_ = torch.ones(text.size(0), device=text.device) * t
-            pred = self.forward(z, t_, text, **kwargs)
-            z = z.detach() + pred * dt
+            with torch.no_grad():
+                pred = self.forward(z, t_, text, **kwargs)
+                z = z + pred.detach() * dt
             if i == N - 1 or keep_traj:
                 traj.append(z.detach())
         return traj

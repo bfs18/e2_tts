@@ -101,7 +101,7 @@ def parse_text(test_txt, phoneset):
     return text_dict
 
 
-def tts(aco_model_dir, voc_model_dir, text_lines, ref_audio, ref_text, phone2id, save_dir, sr, N=10):
+def tts(aco_model_dir, voc_model_dir, text_lines, ref_audio, ref_text, phone2id, save_dir, sr, N=100):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     aco_exp = load_model(aco_model_dir, device=device, last=True)
     aco_config_yaml = Path(aco_model_dir) / 'config.yaml'
@@ -124,12 +124,17 @@ def tts(aco_model_dir, voc_model_dir, text_lines, ref_audio, ref_text, phone2id,
         text = aco_exp.input_adaptor(*phone_info)
         dur_kwargs = aco_exp.infer_dur(text, **pi_kwargs)
         pi_kwargs.update(**dur_kwargs)
-        mel_hat = aco_exp.sample_ode(text, N=10, **pi_kwargs)[-1]
+        print('synthesizing', k, 'num_tokens', token_ids.size(1), 'num_frames', pi_kwargs['out_length'].item())
+        mel_hat = aco_exp.sample_ode(text, N=N, **pi_kwargs)[-1]
         mel_hat = aco_exp.mel_processor.return_sample(mel_hat)
         mel_hat = torch.exp(mel_hat).log10()  # voc training used log 10
-        audio_hat = voc_exp.reflow.sample_ode(mel_hat, N=N)[-1]
+        audio_hat = voc_exp.reflow.sample_ode(mel_hat, N=10)[-1]
         audio_hat = audio_hat.detach().cpu().numpy()
-        soundfile.write(Path(save_dir) / f'{k}-syn.wav', audio_hat.T, samplerate=sr, subtype='PCM_16')
+        soundfile.write(Path(save_dir) / f'{k}-full.wav', audio_hat.T, samplerate=sr, subtype='PCM_16')
+        mel_hat_syn = mel_hat[..., ref_mel.size(2):]
+        audio_hat_syn = voc_exp.reflow.sample_ode(mel_hat_syn, N=10)[-1]
+        audio_hat_syn = audio_hat_syn.detach().cpu().numpy()
+        soundfile.write(Path(save_dir) / f'{k}-syn.wav', audio_hat_syn.T, samplerate=sr, subtype='PCM_16')
 
 
 if __name__ == '__main__':
@@ -138,8 +143,8 @@ if __name__ == '__main__':
     parser.add_argument('--voc_model_dir', type=str, required=True)
     parser.add_argument('--phoneset', type=str, required=True)
     parser.add_argument('--test_txt', type=str, required=True)
-    parser.add_argument('--ref_audio', type=str, required=True)
-    parser.add_argument('--ref_text', type=str, required=True)
+    parser.add_argument('--ref_audio', type=str, default="tests/LJ025-0077.wav")
+    parser.add_argument('--ref_text', type=str, default="Their food is provided for them,")
     parser.add_argument('--save_dir', type=str, required=True)
     parser.add_argument('--sr', type=int, choices=[22050, 24000], default=24000)
 
@@ -153,6 +158,7 @@ if __name__ == '__main__':
     Path(args.save_dir).mkdir(exist_ok=True)
     text_lines = parse_text(args.test_txt, phoneset)
     ref_text = get_phones(args.ref_text, phoneset)
+    assert Path(args.ref_audio).exists()
     ref_audio, sr = torchaudio.load(args.ref_audio)
     assert sr == args.sr
     tts(args.aco_model_dir, args.voc_model_dir, text_lines, ref_audio, ref_text, phone2id, args.save_dir, sr=args.sr)
