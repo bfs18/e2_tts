@@ -200,7 +200,7 @@ class VocosExp(pl.LightningModule):
         if self.cfg:
             text = torch.cat([text, torch.ones_like(text) * text.mean(dim=(0, 2), keepdim=True)], dim=0)
             for k, v in kwargs.items():
-                if isinstance(v, torch.Tensor):
+                if isinstance(v, torch.Tensor) and v.ndim >= 1:
                     kwargs[k] = torch.cat([v] * 2, dim=0)
 
         for i, t in enumerate(ts[:-1]):
