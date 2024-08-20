@@ -121,7 +121,7 @@ def tts(aco_model_dir, voc_model_dir, text_lines, ref_audio, ref_text, phone2id,
     voc_config = load_config(voc_config_yaml)
     assert ref_audio.ndim == 2 and ref_audio.size(0) == 1
     ref_mel = aco_exp.feature_extractor(ref_audio.to(device))
-    ref_mel = aco_exp.mel_processor.project_sample(ref_mel)
+    # ref_mel = aco_exp.mel_processor.project_sample(ref_mel) ref mel is not projected before feeding into InputAdaptor
     # ref_token_ids = torch.tensor([phone2id[str(tk)] for tk in ref_text])
     pi_kwargs = {'ctx_start': torch.tensor([0], dtype=torch.long).to(device),
                  'ctx_length': torch.tensor([ref_mel.size(2)], dtype=torch.long).to(device)}
