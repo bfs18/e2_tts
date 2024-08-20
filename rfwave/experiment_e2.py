@@ -174,7 +174,11 @@ class VocosExp(pl.LightningModule):
         dur_loss = self.compute_dur_loss(text, **pi_kwargs)
         # cfg after dur_loss as cfg modifies text.
         if self.cfg and np.random.uniform() < self.p_uncond:
-            text = torch.ones_like(text) * text.detach().mean(dim=(0, 2), keepdim=True)
+            text_, ref = torch.split(
+                text, [pi_kwargs['num_tokens'].max(), pi_kwargs['ctx_length'].max()], dim=-1)
+            # clutter text information only.
+            text_ = torch.ones_like(text_) * text_.mean(dim=(0, 2), keepdim=True)
+            text = torch.cat([text_, ref], dim=-1).detach()
         mel = self.feature_extractor(audio_input, **kwargs)
         mel = self.mel_processor.project_sample(mel)
         ctx_mask = sequence_mask_with_ctx(**ctx_kwargs)
@@ -198,7 +202,11 @@ class VocosExp(pl.LightningModule):
         traj = []
 
         if self.cfg:
-            text = torch.cat([text, torch.ones_like(text) * text.mean(dim=(0, 2), keepdim=True)], dim=0)
+            text_, ref = torch.split(text, [kwargs['num_tokens'].max(), kwargs['ctx_length'].max()], dim=-1)
+            # clutter text information only.
+            text_ = torch.ones_like(text_) * text_.detach().mean(dim=(0, 2), keepdim=True)
+            text_ = torch.cat([text_, ref], dim=-1)
+            text = torch.cat([text, text_], dim=0)
             for k, v in kwargs.items():
                 if isinstance(v, torch.Tensor) and v.ndim >= 1:
                     kwargs[k] = torch.cat([v] * 2, dim=0)

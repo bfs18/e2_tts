@@ -31,7 +31,7 @@ def add_bos_eos(phones):
 g2p = G2p()
 
 meta_csv = 'LJSpeech-1.1/metadata.csv'
-save_dir = 'LJSpeech-1.1/synta_alignment'
+save_dir = 'LJSpeech-1.1/transcription'
 
 meta_lines = [l.strip() for l in Path(meta_csv).open()]
 meta_dict = dict()
