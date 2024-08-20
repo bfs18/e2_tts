@@ -5,7 +5,7 @@ data:
   init_args:
     train_params:
       filelist_path: /data1/liupeng/corpus/LJSpeech-1.1-update/synta_filelist.train
-      sampling_rate: 22050
+      sampling_rate: 24000
       batch_size: 1
       num_workers: 8
       task: e2e
@@ -14,12 +14,12 @@ data:
       phoneset: /data1/liupeng/corpus/LJSpeech-1.1-update/synta_phoneset.th
       min_context: 200
       segment: False
-      max_duration: 70.
+      max_duration: 560.
       quadratic_duration: 15.
 
     val_params:
       filelist_path: /data1/liupeng/corpus/LJSpeech-1.1-update/synta_filelist.valid
-      sampling_rate: 22050
+      sampling_rate: 24000
       batch_size: 1
       num_workers: 4
       task: e2e
@@ -28,13 +28,13 @@ data:
       phoneset: /data1/liupeng/corpus/LJSpeech-1.1-update/synta_phoneset.th
       min_context: 200
       segment: False
-      max_duration: 80.
+      max_duration: 640.
       quadratic_duration: 15.
 
 model:
   class_path: rfwave.experiment_e2.VocosExp
   init_args:
-    sample_rate: 22050
+    sample_rate: 24000
     initial_learning_rate: 1e-4
     num_warmup_steps: 20_000 # Optimizers warmup steps
     p_uncond: 0.1
@@ -43,7 +43,7 @@ model:
     feature_extractor:
       class_path: rfwave.feature_extractors.MelSpectrogramFeatures
       init_args:
-        sample_rate: 22050
+        sample_rate: 24000
         n_fft: 1024
         hop_length: 256
         n_mels: 100
@@ -98,5 +98,5 @@ trainer:
   strategy: auto
   log_every_n_steps: 1000
   use_distributed_sampler: False
-  # precision: 16-mixed
+  precision: bf16-mixed
 

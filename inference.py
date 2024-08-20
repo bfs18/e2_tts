@@ -12,6 +12,8 @@ from pathlib import Path
 from argparse import ArgumentParser
 from g2p_en import G2p
 from collections import OrderedDict
+from rfwave.helpers import plot_spectrogram_to_numpy
+from matplotlib import pyplot
 
 g2p = G2p()
 
@@ -101,6 +103,14 @@ def parse_text(test_txt, phoneset):
     return text_dict
 
 
+def save_fig(spec, save_fp):
+    pyplot.figure(figsize=(12, 3))
+    pyplot.imshow(spec, aspect="auto")
+    pyplot.tight_layout()
+    pyplot.savefig(save_fp)
+    pyplot.close()
+
+
 def tts(aco_model_dir, voc_model_dir, text_lines, ref_audio, ref_text, phone2id, save_dir, sr, N=100):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     aco_exp = load_model(aco_model_dir, device=device, last=True)
@@ -115,7 +125,7 @@ def tts(aco_model_dir, voc_model_dir, text_lines, ref_audio, ref_text, phone2id,
     # ref_token_ids = torch.tensor([phone2id[str(tk)] for tk in ref_text])
     pi_kwargs = {'ctx_start': torch.tensor([0], dtype=torch.long).to(device),
                  'ctx_length': torch.tensor([ref_mel.size(2)], dtype=torch.long).to(device)}
-    for k, line in text_lines.items():
+    for k, line in list(sorted(text_lines.items()))[:10]:
         full_line = ref_text + line[1:]  # only 1 <BOS>
         token_ids = torch.tensor([phone2id[str(tk)] for tk in full_line])
         token_ids = token_ids.unsqueeze(0).to(device)
@@ -127,6 +137,9 @@ def tts(aco_model_dir, voc_model_dir, text_lines, ref_audio, ref_text, phone2id,
         print('synthesizing', k, 'num_tokens', token_ids.size(1), 'num_frames', pi_kwargs['out_length'].item())
         mel_hat = aco_exp.sample_ode(text, N=N, **pi_kwargs)[-1]
         mel_hat = aco_exp.mel_processor.return_sample(mel_hat)
+        spec = plot_spectrogram_to_numpy(mel_hat.detach().cpu().numpy()[0])
+        fig_fp = Path(save_dir) / f'{k}-full.png'
+        save_fig(spec, fig_fp)
         mel_hat = torch.exp(mel_hat).log10()  # voc training used log 10
         audio_hat = voc_exp.reflow.sample_ode(mel_hat, N=10)[-1]
         audio_hat = audio_hat.detach().cpu().numpy()
