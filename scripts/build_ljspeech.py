@@ -5,6 +5,8 @@ from collections import Counter
 from pathlib import Path
 from g2p_en import G2p
 
+import nltk
+nltk.download('averaged_perceptron_tagger_eng')
 
 def remove_space_around_punctuation(phones):
     new_phones = []
