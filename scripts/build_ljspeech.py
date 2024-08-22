@@ -35,6 +35,8 @@ g2p = G2p()
 meta_csv = 'LJSpeech-1.1/metadata.csv'
 save_dir = 'LJSpeech-1.1/transcription'
 
+Path(save_dir).mkdir(parents=True, exist_ok=True)
+
 meta_lines = [l.strip() for l in Path(meta_csv).open()]
 meta_dict = dict()
 for l in meta_lines:
