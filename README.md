@@ -1,6 +1,5 @@
 ### Implementation of [E2 TTS: Embarrassingly Easy Fully Non-Autoregressive Zero-Shot TTS](https://arxiv.org/abs/2406.18009)
 
-Inference results and some discussion can be found [here](https://github.com/lucidrains/e2-tts-pytorch/issues/25)
 
 Usage:
 
@@ -17,6 +16,8 @@ and inference with inference.py. Synthesized samples from this checkpoint can be
 python3 inference.py --test_txt tests/test.txt \
     --aco_model_dir /path/to/e2_tts-cfg_2_cond2-bf16-large_batch \
     --voc_model_dir /path/to/rfwave-libritts-24k \
-    --phoneset /path/to/phoneset.th \
+    --phoneset tests/phoneset.th \
     --save_dir syn_e2-08-22 --sr 24000
 ```
+
+Some discussion can be found [here](https://github.com/lucidrains/e2-tts-pytorch/issues/25).
