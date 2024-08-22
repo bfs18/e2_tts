@@ -173,5 +173,6 @@ if __name__ == '__main__':
     ref_text = get_phones(args.ref_text, phoneset)
     assert Path(args.ref_audio).exists()
     ref_audio, sr = torchaudio.load(args.ref_audio)
-    assert sr == args.sr
+    if sr == args.sr:
+        ref_audio = torchaudio.functional.resample(ref_audio, orig_freq=sr, new_freq=args.sr)
     tts(args.aco_model_dir, args.voc_model_dir, text_lines, ref_audio, ref_text, phone2id, args.save_dir, sr=args.sr)
