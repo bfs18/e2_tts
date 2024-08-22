@@ -4,28 +4,28 @@ data:
   class_path: rfwave.dataset.VocosDataModule
   init_args:
     train_params:
-      filelist_path: /data1/liupeng/corpus/LJSpeech-1.1-update/synta_filelist.train
+      filelist_path: /path/to/filelist.train
       sampling_rate: 24000
       batch_size: 1
       num_workers: 8
       task: e2e
       hop_length: 256
       padding: "center"
-      phoneset: /data1/liupeng/corpus/LJSpeech-1.1-update/synta_phoneset.th
+      phoneset: /path/to/phoneset.th
       min_context: 200
       segment: False
       max_duration: 560.
       quadratic_duration: 15.
 
     val_params:
-      filelist_path: /data1/liupeng/corpus/LJSpeech-1.1-update/synta_filelist.valid
+      filelist_path: /path/to/filelist.valid
       sampling_rate: 24000
       batch_size: 1
       num_workers: 4
       task: e2e
       hop_length: 256
       padding: "center"
-      phoneset: /data1/liupeng/corpus/LJSpeech-1.1-update/synta_phoneset.th
+      phoneset: /path/to/phoneset.th
       min_context: 200
       segment: False
       max_duration: 640.
@@ -73,8 +73,8 @@ trainer:
     class_path: pytorch_lightning.loggers.WandbLogger
     init_args:
       project: e2_tts
-      save_dir: /data1/liupeng/logs/e2_tts/logs-e2_tts-debug
-      name: e2_tts-debug
+      save_dir: logs-e2_tts
+      name: e2_tts
   callbacks:
     - class_path: pytorch_lightning.callbacks.LearningRateMonitor
     - class_path: pytorch_lightning.callbacks.ModelSummary
