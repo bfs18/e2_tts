@@ -18,3 +18,4 @@ pyyaml
 librosa
 soundfile
 scipy
+vector_quantize_pytorch

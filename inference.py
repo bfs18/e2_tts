@@ -138,16 +138,16 @@ def tts(aco_model_dir, voc_model_dir, text_lines, ref_audio, ref_text, phone2id,
         mel_hat = aco_exp.sample_ode(text, N=N, **pi_kwargs)[-1]
         mel_hat = aco_exp.mel_processor.return_sample(mel_hat)
         spec = plot_spectrogram_to_numpy(mel_hat.detach().cpu().numpy()[0])
-        fig_fp = Path(save_dir) / f'{k}-full.png'
+        fig_fp = Path(save_dir) / f'{k[:25]}-full.png'
         save_fig(spec, fig_fp)
         mel_hat = torch.exp(mel_hat).log10()  # voc training used log 10
         audio_hat = voc_exp.reflow.sample_ode(mel_hat, N=10)[-1]
         audio_hat = audio_hat.detach().cpu().numpy()
-        soundfile.write(Path(save_dir) / f'{k}-full.wav', audio_hat.T, samplerate=sr, subtype='PCM_16')
+        soundfile.write(Path(save_dir) / f'{k[:25]}-full.wav', audio_hat.T, samplerate=sr, subtype='PCM_16')
         mel_hat_syn = mel_hat[..., ref_mel.size(2):]
         audio_hat_syn = voc_exp.reflow.sample_ode(mel_hat_syn, N=10)[-1]
         audio_hat_syn = audio_hat_syn.detach().cpu().numpy()
-        soundfile.write(Path(save_dir) / f'{k}-syn.wav', audio_hat_syn.T, samplerate=sr, subtype='PCM_16')
+        soundfile.write(Path(save_dir) / f'{k[:25]}-syn.wav', audio_hat_syn.T, samplerate=sr, subtype='PCM_16')
 
 
 if __name__ == '__main__':

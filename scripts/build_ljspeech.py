@@ -5,6 +5,8 @@ from collections import Counter
 from pathlib import Path
 from g2p_en import G2p
 
+import nltk
+nltk.download('averaged_perceptron_tagger_eng')
 
 def remove_space_around_punctuation(phones):
     new_phones = []
@@ -32,6 +34,8 @@ g2p = G2p()
 
 meta_csv = 'LJSpeech-1.1/metadata.csv'
 save_dir = 'LJSpeech-1.1/transcription'
+
+Path(save_dir).mkdir(parents=True, exist_ok=True)
 
 meta_lines = [l.strip() for l in Path(meta_csv).open()]
 meta_dict = dict()

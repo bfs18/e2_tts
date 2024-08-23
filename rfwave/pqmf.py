@@ -39,7 +39,7 @@ def design_prototype_filter(taps=62, cutoff_ratio=0.142, beta=9.0):
     h_i[taps // 2] = np.cos(0) * cutoff_ratio  # fix nan due to indeterminate form
 
     # apply kaiser window
-    w = signal.kaiser(taps + 1, beta)
+    w = signal.windows.kaiser(taps + 1, beta)
     h = h_i * w
 
     return h
