@@ -123,8 +123,10 @@ class E2ECtxCharInputAdaptor(InputAdaptor):
         self.dim = embedding_dim
         self.tok_embeddings = nn.Embedding(vocab_size, embedding_dim)
         self.ctx_proj = nn.Conv1d(ctx_dim, embedding_dim, kernel_size=1)
-        self.tok_blocks = nn.Sequential(*[ConvNeXtV2Block(embedding_dim, embedding_dim*3) for _ in range(num_layers)])
-        self.ctx_blocks = nn.Sequential(*[ConvNeXtV2Block(embedding_dim, embedding_dim*3) for _ in range(num_layers)])
+        self.tok_blocks = (nn.Sequential(*[ConvNeXtV2Block(embedding_dim, embedding_dim*3) for _ in range(num_layers)])
+                           if num_layers >= 1 else nn.Identity())
+        self.ctx_blocks = (nn.Sequential(*[ConvNeXtV2Block(embedding_dim, embedding_dim*3) for _ in range(num_layers)])
+                           if num_layers >= 1 else nn.Identity())
         self.register_buffer("freqs_cis", precompute_freqs_cis(embedding_dim, 1024), persistent=False)
         self.apply(self._init_weights)
 
